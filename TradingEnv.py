@@ -80,33 +80,162 @@ class MultiStockTradingEnv(gym.Env):
         return np.hstack((combined_stock_data, portfolio_info))
 
     def step(self, action):
-        # Apply the action and calculate reward
-        reward = self._take_action(action)
+        # Check if the episode is already marked as done
+        if self.done:
+            last_observation = self._get_observation() if hasattr(self, 'current_date') else np.zeros(self.observation_space.shape, dtype=np.float32)
+            return last_observation, 0, True, {"portfolio_value": self.portfolio_value}
+
+        sentiment_debug_info = {'available': False}
+        prev_portfolio_value = self.portfolio_value
+        total_transaction_cost = 0
+
+        try:
+            trade_reward, transaction_cost = self._take_action(action)
+            total_transaction_cost += transaction_cost
+        except Exception as e:
+            trade_reward = -10
+            transaction_cost = 0
+            total_transaction_cost = 0
+
         self.current_date_idx += 1
         self.done = self.current_date_idx >= len(self.common_dates)
 
+        new_portfolio_value = self.portfolio_value
+        next_observation = None
+
         if not self.done:
-            self.current_date = self.common_dates[self.current_date_idx]
-            self.portfolio_value = self.balance + self._calculate_stocks_value()
-            self.portfolio_value_history.append(self.portfolio_value)
+            try:
+                self.current_date = self.common_dates[self.current_date_idx]
+            except IndexError:
+                self.done = True
+                self.current_date = self.common_dates[-1] if self.common_dates else None
 
-            allocations = {}
-            for symbol in self.symbols:
-                price = self.stock_dfs[symbol].loc[self.current_date]['Close']
-                stock_value = self.portfolio[symbol] * price
-                allocations[symbol] = stock_value / self.portfolio_value if self.portfolio_value > 0 else 0
-            self.allocation_history.append(allocations)
+            try:
+                if self.current_date:
+                    new_portfolio_value = self.balance + self._calculate_stocks_value()
+                    self.portfolio_value = new_portfolio_value
+                    self.portfolio_value_history.append(new_portfolio_value)
+                else:
+                    new_portfolio_value = prev_portfolio_value
+            except Exception as e:
+                new_portfolio_value = prev_portfolio_value
 
-        observation = self._get_observation()
-        info = {
-            'date': self.current_date,
-            'portfolio_value': self.portfolio_value,
-            'balance': self.balance,
-            'holdings': self.portfolio.copy(),
-            'allocations': {s: v for s, v in zip(self.symbols, observation[0, -self.n_stocks:])}
+            try:
+                if self.current_date:
+                    next_observation = self._get_observation()
+                else:
+                    next_observation = np.zeros(self.observation_space.shape, dtype=np.float32)
+                    self.done = True
+            except Exception as e:
+                next_observation = np.zeros(self.observation_space.shape, dtype=np.float32)
+                self.done = True
+        else:
+            new_portfolio_value = self.portfolio_value
+            next_observation = np.zeros(self.observation_space.shape, dtype=np.float32)
+
+        # ================== Enhanced Normalized Reward Calculation ==================
+        raw_components = {
+            'portfolio_change': 0,
+            'sharpe_ratio': 0,
+            'drawdown': 0,
+            'sentiment_alignment': 0
         }
 
-        return observation, reward, self.done, info
+        if prev_portfolio_value > 0:
+            portfolio_change = (new_portfolio_value / prev_portfolio_value) - 1
+            raw_components['portfolio_change'] = portfolio_change * 100
+
+        if len(self.portfolio_value_history) > 30:
+            returns = np.diff(np.log(self.portfolio_value_history[-30:]))
+            if len(returns) > 1 and np.std(returns) > 1e-9:
+                sharpe = np.mean(returns) / np.std(returns) * np.sqrt(252)
+                raw_components['sharpe_ratio'] = sharpe
+
+        if len(self.portfolio_value_history) > 1:
+            peak = np.max(self.portfolio_value_history)
+            if peak > 0:
+                current_drawdown = (peak - new_portfolio_value) / peak
+                raw_components['drawdown'] = current_drawdown * 100
+
+        if hasattr(self, 'sentiment_scores') and action < self.n_stocks * 9:
+            stock_idx = action // 9
+            action_type = action % 9
+            symbol = self.symbols[stock_idx]
+            if symbol in self.sentiment_scores:
+                try:
+                    if self.current_date in self.sentiment_scores[symbol].index:
+                        current_sentiment = self.sentiment_scores[symbol].loc[self.current_date]
+                        sentiment_debug_info = {
+                            'available': True,
+                            'symbol': symbol,
+                            'sentiment': float(current_sentiment),
+                            'action_type': int(action_type)
+                        }
+                        volatility_factor = 0.5
+                        try:
+                            if self.current_date_idx > 20:
+                                recent_prices = []
+                                for i in range(max(0, self.current_date_idx-20), self.current_date_idx+1):
+                                    if i < len(self.common_dates):
+                                        date = self.common_dates[i]
+                                        if date in self.stock_dfs[symbol].index:
+                                            recent_prices.append(self.stock_dfs[symbol].loc[date]['Close'])
+                                if len(recent_prices) > 5:
+                                    volatility = np.std(recent_prices) / np.mean(recent_prices)
+                                    volatility_factor = 1 / (1 + 5 * volatility)
+                        except Exception as e:
+                            pass
+                        if action_type == 0:
+                            alignment = 0
+                        elif (1 <= action_type <= 4 and current_sentiment > 0):
+                            alignment = current_sentiment * volatility_factor
+                        elif (5 <= action_type <= 8 and current_sentiment < 0):
+                            alignment = -current_sentiment * volatility_factor
+                        else:
+                            alignment = -0.1 * volatility_factor
+                        raw_components['sentiment_alignment'] = alignment * 5
+                except (KeyError, TypeError):
+                    pass
+
+        normalized_components = {}
+        norm_params = {
+            'portfolio_change': {'min': -5, 'max': 5},
+            'sharpe_ratio': {'min': -3, 'max': 3},
+            'drawdown': {'min': 0, 'max': 20},
+            'sentiment_alignment': {'min': -1, 'max': 1}
+        }
+
+        for component, value in raw_components.items():
+            min_val = norm_params[component]['min']
+            max_val = norm_params[component]['max']
+            if component == 'drawdown':
+                normalized_val = -np.clip((value - min_val) / (max_val - min_val) * 2 - 1, -1, 1)
+            else:
+                normalized_val = np.clip((value - min_val) / (max_val - min_val) * 2 - 1, -1, 1)
+            normalized_components[component] = normalized_val
+
+        total_reward = (
+            0.45 * normalized_components.get('portfolio_change', 0) +
+            0.2 * normalized_components.get('sharpe_ratio', 0) +
+            0.2 * normalized_components.get('drawdown', 0) +
+            0.15 * normalized_components.get('sentiment_alignment', 0)
+        )
+
+        reward_components = {
+            'raw': {k: float(v) for k, v in raw_components.items()},
+            'normalized': {k: float(v) for k, v in normalized_components.items()}
+        }
+
+        info = {
+            "portfolio_value": new_portfolio_value,
+            "balance": self.balance,
+            "holdings": {s: self.portfolio.get(s, 0) for s in self.symbols},
+            "date": self.current_date if not self.done and self.current_date else self.common_dates[-1] if self.common_dates else None,
+            "reward_components": reward_components,
+            "sentiment_debug_info": sentiment_debug_info
+        }
+
+        return next_observation, total_reward, self.done, info
 
     def _take_action(self, action):
         prev_value = self.portfolio_value
@@ -182,6 +311,7 @@ class MultiStockTradingEnv(gym.Env):
         ax1.set_title('Portfolio Value Over Time')
         ax1.plot(self.common_dates[self.window_size:self.current_date_idx+1], self.portfolio_value_history)
         ax1.set_ylabel('Portfolio Value (₹)')
+        
         ax2 = fig.add_subplot(3, 1, 2)
         ax2.set_title('Stock Prices')
         for symbol in self.symbols:
@@ -191,6 +321,7 @@ class MultiStockTradingEnv(gym.Env):
             ax2.plot(prices.index, prices / prices.iloc[0], label=symbol)
         ax2.set_ylabel('Normalized Price')
         ax2.legend()
+        
         if self.allocation_history:
             ax3 = fig.add_subplot(3, 1, 3)
             ax3.set_title('Portfolio Allocation')

@@ -5,9 +5,7 @@ from fetchinfunc import fetch_stock_data, add_technical_indicators, preprocess_d
 from RiskManagement import RiskManager
 from TradingEnv import MultiStockTradingEnv
 from Sentiment import SentimentEnhancedTradingEnv
-from A2cAgent import A2CAgent, train_a2c_agent
-from Agent import DQNAgent, train_dqn_agent  
-from Hyperpar import PPOAgent, train_ppo_agent  
+from A2cAgent import A2CAgent, train_a2c_agent 
 
 def run_complete_trading_system(stock_list, training_period, testing_period, algorithm='ppo'):
     print("Starting trading system with all enhancements...")
@@ -55,15 +53,11 @@ def run_complete_trading_system(stock_list, training_period, testing_period, alg
     state_size = risk_env.observation_space.shape[0]
     action_size = risk_env.action_space.n
 
-    if algorithm.lower() == 'dqn':
-        agent = DQNAgent(state_size, action_size)
-        train_fn = lambda env, agent: train_dqn_agent(env, agent, episodes=100)
-    elif algorithm.lower() == 'a2c':
+
+    if algorithm.lower() == 'a2c':
         agent = A2CAgent(state_size, action_size)
         train_fn = train_a2c_agent
-    else:
-        agent = PPOAgent(state_size, action_size)
-        train_fn = train_ppo_agent
+
 
     print(f"\nTraining {algorithm.upper()} agent...")
     training_results = train_fn(risk_env, agent)
@@ -145,5 +139,5 @@ if __name__ == '__main__':
         stocks,
         training_period,
         testing_period,
-        algorithm='a2c'
+        algorithm='ppo'
     )

@@ -57,8 +57,8 @@ python FinalCall.py
 - `fetchinfunc.py`: Fetches stock data and computes technical indicators.
 - `A2cAgent.py`: Contains the A2C agent implementation and training logic.
 - `Sentiment.py`: News sentiment analysis tools and sentiment-enhanced trading environment.
-- `RiskManagement.py`: (Assumed) Risk management utilities.
-- `TradingEnv.py`: (Assumed) Custom OpenAI Gym environment for stock trading.
+- `RiskManagement.py`: Risk management utilities.
+- `TradingEnv.py`: Custom OpenAI Gym environment for stock trading.
 - `FinalCall.py`: Main pipeline for running the end-to-end RL trading system.
 
 ## Key Concepts

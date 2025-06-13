@@ -11,63 +11,107 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 def fetch_stock_data(ticker, start_date, end_date):
+    """
+    Fetch historical stock data using yfinance and handle MultiIndex structure
+    """
     try:
-        stock = yf.download(ticker, start=start_date, end=end_date)
-        if stock.empty:
-            print(f"Warning: No data found for {ticker}")
+        print(f"Fetching data for {ticker} from {start_date} to {end_date}")
+        stock_data = yf.download(ticker, start=start_date, end=end_date)
+
+        if stock_data.empty:
+            print(f"No data found for {ticker}.")
             return None
 
-        # Standardize date format and sort chronologicaly
-        stock.index = pd.to_datetime(stock.index).strftime('%Y-%m-%d')
-        stock = stock.sort_index()
-        
-        return stock
-    
+        # Ensure index is datetime
+        stock_data.index = pd.to_datetime(stock_data.index)
+
+        # Check if we have a MultiIndex structure
+        if isinstance(stock_data.columns, pd.MultiIndex):
+            print(f"MultiIndex detected for {ticker}, flattening...")
+
+            # Create a new dataframe with flattened columns
+            flattened_df = pd.DataFrame(index=stock_data.index)
+
+            # Extract each column we need
+            if ('Close', ticker) in stock_data.columns:
+                flattened_df['Close'] = stock_data[('Close', ticker)]
+                flattened_df['Open'] = stock_data[('Open', ticker)]
+                flattened_df['High'] = stock_data[('High', ticker)]
+                flattened_df['Low'] = stock_data[('Low', ticker)]
+                flattened_df['Volume'] = stock_data[('Volume', ticker)]
+            else:
+                # Try to find the columns regardless of their exact structure
+                for col in stock_data.columns:
+                    if col[0] == 'Close':
+                        flattened_df['Close'] = stock_data[col]
+                    elif col[0] == 'Open':
+                        flattened_df['Open'] = stock_data[col]
+                    elif col[0] == 'High':
+                        flattened_df['High'] = stock_data[col]
+                    elif col[0] == 'Low':
+                        flattened_df['Low'] = stock_data[col]
+                    elif col[0] == 'Volume':
+                        flattened_df['Volume'] = stock_data[col]
+
+            return flattened_df
+        else:
+            # If not MultiIndex, return as is
+            return stock_data
     except Exception as e:
         print(f"Error fetching data for {ticker}: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
-def add_technical_indicators(df):
-    df = df.copy()
+def add_simple_indicators(df):
+    """
+    Add a simplified set of technical indicators to reduce potential errors
+    """
+    if df is None or df.empty:
+        return None
 
-    # Moving Averages
-    df['SMA_20'] = df['Close'].rolling(window=20).mean()
-    df['SMA_50'] = df['Close'].rolling(window=50).mean()
-    df['EMA_20'] = df['Close'].ewm(span=20, adjust=False).mean()
+    result = df.copy()
 
-    # Relative Strength Index (RSI)
-    delta = df['Close'].diff()
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-    
-    avg_gain = gain.rolling(window=14).mean()
-    avg_loss = loss.rolling(window=14).mean()
-    
-    rs = avg_gain / avg_loss
-    df['RSI'] = 100 - (100 / (1 + rs))
+    try:
+        # Check if 'Close' is a DataFrame with multiple columns
+        if isinstance(result['Close'], pd.DataFrame):
+            print(f"Close is a DataFrame with columns: {result['Close'].columns}")
+            # Extract just the 'Close' column as a Series
+            close_series = result['Close']['Close'] if 'Close' in result['Close'].columns else result['Close'].iloc[:, 0]
 
-    # MACD Calculations
-    ema12 = df['Close'].ewm(span=12, adjust=False).mean()
-    ema26 = df['Close'].ewm(span=26, adjust=False).mean()
-    df['MACD'] = ema12 - ema26
-    df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
+            # Simple moving averages - directly using pandas
+            result['SMA_20'] = close_series.rolling(window=20).mean()
+            result['SMA_50'] = close_series.rolling(window=50).mean()
 
-    # Cleanup and return
-    df.dropna(inplace=True)
-    return df
+            # Relative price to moving averages
+            result['Price_to_SMA20'] = close_series / result['SMA_20']
+            result['Price_to_SMA50'] = close_series / result['SMA_50']
 
-def preprocess_data(df):
-    df = df.copy()
-    df.dropna(inplace=True)
+            # Daily returns
+            result['Daily_Return'] = close_series.pct_change()
 
-    # Identify numerical features for scaling
-    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
-    if 'Close' in numeric_cols:
-        numeric_cols = numeric_cols.drop('Close')  # Preserve original prices
+            # Volatility (20-day standard deviation of returns)
+            result['Volatility'] = result['Daily_Return'].rolling(window=20).std()
+        else:
+            # Original approach for when 'Close' is a Series
+            result['SMA_20'] = result['Close'].rolling(window=20).mean()
+            result['SMA_50'] = result['Close'].rolling(window=50).mean()
 
-    # Feature scaling
-    scaler = StandardScaler()
-    df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
-    
-    return df
+            result['Price_to_SMA20'] = result['Close'] / result['SMA_20']
+            result['Price_to_SMA50'] = result['Close'] / result['SMA_50']
 
+            result['Daily_Return'] = result['Close'].pct_change()
+            result['Volatility'] = result['Daily_Return'].rolling(window=20).std()
+
+        # Fill missing values
+        result.fillna(method='bfill', inplace=True)
+
+        return result
+    except Exception as e:
+        print(f"Error adding indicators: {e}")
+        print(f"Data structure: Close type = {type(result['Close'])}")
+        if hasattr(result['Close'], 'shape'):
+            print(f"Close shape = {result['Close'].shape}")
+        if isinstance(result['Close'], pd.DataFrame):
+            print(f"Close columns = {result['Close'].columns}")
+        return None

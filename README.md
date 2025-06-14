@@ -123,8 +123,14 @@ python backtester.py
 
 ## 📈 Performance Metrics
 
-> **Annual Return:** 3.87% on an investment of ₹10,00,000.
-> Additional metrics like Sharpe Ratio and Max Drawdown are calculated per evaluation cycle which was used in reward function.
+| Metric                  | Value           |
+|------------------------|-----------------|
+| Initial Portfolio Value| ₹10,00,000.00   |
+| Final Portfolio Value  | ₹10,59,211.27   |
+| Total Return           | 5.92%           |
+| Annual Return          | 3.87%           |
+| Maximum Drawdown       | 7.84%           |
+| Sharpe Ratio (Annual)  | 0.6880          |
 
 ---
 

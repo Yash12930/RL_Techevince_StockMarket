@@ -128,7 +128,6 @@ python backtester.py
 | Initial Portfolio Value| ₹10,00,000.00   |
 | Final Portfolio Value  | ₹10,59,211.27   |
 | Total Return           | 5.92%           |
-| Annual Return          | 3.87%           |
 | Maximum Drawdown       | 7.84%           |
 | Sharpe Ratio (Annual)  | 0.6880          |
 

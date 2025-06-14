@@ -1,44 +1,107 @@
-# RL_Techevince_StockMarket
+# RL Equity Trading Framework
 
-RL_Techevince_StockMarket is an advanced toolkit and research framework for applying Reinforcement Learning (RL) to stock portfolio management and trading strategies. It brings together state-of-the-art RL algorithms, technical analysis, sentiment analysis, and risk management in a modular pipeline for Indian and global stock markets.
+**RL\_Techevince\_StockMarket** is an advanced toolkit and research framework for applying Reinforcement Learning (RL) to stock portfolio management and trading strategies. It brings together state-of-the-art RL algorithms, technical indicators, sentiment analysis, and risk management in a modular pipeline for Indian and global stock markets.
 
-## Features
+---
 
-- **Data Fetching & Technical Analysis**
-  - Automated retrieval of historical stock data using `yfinance`.
-  - Calculation of technical indicators such as SMA, EMA, RSI, and MACD.
-  - Data preprocessing with normalization and feature engineering for machine learning tasks.
+## 📂 File Structure
 
-- **Reinforcement Learning Agents**
-  - Implementation of the Advantage Actor-Critic (A2C) agent with deep neural networks (CNN + LSTM).
-  - Modular support for other RL algorithms (e.g., PPO).
-  - Training and evaluation workflows for portfolio management.
+```
+project/
+├── fetchinfunc.py        # Data pipeline (OHLCV + Technical Indicators)
+├── Agent.py              # Core RL agent configuration (action/state/reward)
+├── Hyperpar.py           # Hyperparameter optimization grid
+├── A2cAgent.py           # A2C implementation (CNN-LSTM Policy)
+├── Sentiment.py          # News scraping & VADER/FinBERT analysis
+├── RiskManagement.py     # Position sizing & stop-loss logic
+├── TradingEnv.py         # Custom Gym environment
+└── FinalCall.py          # Main execution pipeline
+```
 
-- **Sentiment Analysis**
-  - Integration of financial news sentiment using VADER and optional FinBERT transformer-based models.
-  - Text cleaning and NLP pipelines for extracting sentiment signals from financial headlines and news.
+---
 
-- **Risk Management**
-  - Tools for risk management and environment wrappers for safe trading simulation.
+## 🔧 Key Features
 
-- **Performance Evaluation**
-  - Comparison with Buy & Hold strategies.
-  - ROI, profit/loss, and outperformance reporting.
+### 🏛 Core Architecture
 
-## Quick Start
+| Component       | Specification                           |
+| --------------- | --------------------------------------- |
+| RL Algorithm    | Advantage Actor-Critic (A2C)            |
+| Neural Network  | CNN-LSTM Hybrid                         |
+| Lookback Window | 20 trading days                         |
+| Action Space    | 9 actions per stock (25%-100% buy/sell) |
+
+---
+
+### 📊 Data Pipeline
+
+```python
+{
+  "Data Sources": ["Yahoo Finance (yfinance)"],
+  "Stocks": ["RELIANCE.NS", "TCS.NS", ...],  # 10 NSE stocks
+  "Features": [
+    "OHLCV",
+    "SMA20", "SMA50", 
+    "EMA20",
+    "RSI",
+    "MACD",
+  ],
+  "Normalization": "Z-score"
+}
+```
+
+---
+
+### 🧠 Sentiment Engine
+
+```python
+sentiment_config = {
+  "Sources": ["Yahoo Finance News"],
+  "Scraping": "BeautifulSoup",
+  "Models": ["VADER", "FinBERT"],
+  "Temporal": "3-day rolling window",
+  "Weight": 0.15  # Reward component weight
+}
+```
+
+---
+
+### ⚖️ Risk Management
+
+| Mechanism       | Threshold           | Implementation     |
+| --------------- | ------------------- | ------------------ |
+| Position Sizing | 30% per stock       | Kelly Criterion    |
+| Stop-Loss       | 5% trailing         | Dynamic adjustment |
+| Max Drawdown    | 15% circuit breaker | Portfolio freeze   |
+
+---
+
+## 🎯 Reward Function
+
+The total reward for the RL agent is computed as a weighted combination of performance and sentiment metrics:
+
+```python
+total_reward = (
+    0.45 * portfolio_change_norm +
+    0.20 * sharpe_ratio_norm +
+    0.20 * drawdown_norm +
+    0.15 * sentiment_norm
+)
+```
+
+This formulation encourages balanced trading decisions considering returns, risk, and market sentiment.
+
+---
+
+## 🚀 Installation & Usage
 
 ### Prerequisites
 
-- Python 3.7+
-- Install required libraries:
-
-```bash
-pip install -r requirements.txt
-```
+* Python 3.7+
 
 ### Example Usage
 
-Edit `FinalCall.py` to specify stocks, training period, and testing period:
+Edit `FinalCall.py` to specify stocks and training/testing periods:
 
 ```python
 stocks = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "SBIN.NS"]
@@ -49,40 +112,38 @@ testing_period = ("2022-01-02", "2022-12-31")
 Run the trading system:
 
 ```bash
+git clone https://github.com/Yash12930/RL_Techevince_StockMarket.git
+cd RL_Techevince_StockMarket
+pip install -r requirements.txt
 python FinalCall.py
 ```
 
-## File Structure
+---
 
-- `fetchinfunc.py`: Fetches stock data and computes technical indicators.
-- `A2cAgent.py`: Contains the A2C agent implementation and training logic.
-- `Sentiment.py`: News sentiment analysis tools and sentiment-enhanced trading environment.
-- `RiskManagement.py`: (Assumed) Risk management utilities.
-- `TradingEnv.py`: (Assumed) Custom OpenAI Gym environment for stock trading.
-- `FinalCall.py`: Main pipeline for running the end-to-end RL trading system.
+## 📈 Performance Metrics
 
-## Key Concepts
+> **Annual Return:** 3.87% on an investment of ₹10,00,000.
+> Additional metrics like Sharpe Ratio and Max Drawdown are calculated per evaluation cycle which was used in reward function.
 
-- **Technical Indicators**: SMA, EMA, RSI, MACD
-- **Sentiment Analysis**: VADER, FinBERT (optional)
-- **Reinforcement Learning**: Advantage Actor-Critic (A2C), PPO (plug-in ready)
-- **Risk Management**: Adjustable modules for safe trading
+---
 
-## Results
+## 🤝 Contributing
 
-The system outputs portfolio performance and compares RL strategies with traditional Buy & Hold, reporting ROI and profit/loss.
+Pull requests and suggestions are welcome! Please open an issue to discuss major changes or new features.
 
-## Contributing
+---
 
-Pull requests and suggestions are welcome! Please open an issue to discuss any major changes.
+## 📄 License
 
-## License
+This project is licensed under the [MIT License](LICENSE).
 
-[MIT](LICENSE)
+---
 
-## Acknowledgements
+## 🙏 Acknowledgements
 
-- [yfinance](https://github.com/ranaroussi/yfinance)
-- [TensorFlow](https://www.tensorflow.org/)
-- [NLTK](https://www.nltk.org/)
-- [Transformers (HuggingFace)](https://huggingface.co/)
+* [yfinance](https://github.com/ranaroussi/yfinance)
+* [TensorFlow](https://www.tensorflow.org/)
+* [NLTK](https://www.nltk.org/)
+* [Transformers (HuggingFace)](https://huggingface.co/)
+
+---

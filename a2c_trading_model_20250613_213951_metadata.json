@@ -1,0 +1,12 @@
+{
+    "model_type": "A2C",
+    "saved_date": "2025-06-13 21:39:51",
+    "state_size": "(20, 132)",
+    "action_size": 91,
+    "best_params": {
+        "actor_lr": 0.0001,
+        "critic_lr": 0.0002,
+        "gamma": 0.99
+    },
+    "scaler_path": "a2c_trading_model_20250613_213951_scaler.joblib"
+}

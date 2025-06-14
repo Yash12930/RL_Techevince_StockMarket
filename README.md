@@ -15,7 +15,8 @@ project/
 ├── Sentiment.py          # News scraping & VADER/FinBERT analysis
 ├── RiskManagement.py     # Position sizing & stop-loss logic
 ├── TradingEnv.py         # Custom Gym environment
-└── FinalCall.py          # Main execution pipeline
+├── Train.py              # Main Training and saving the model
+└── backtester.py         # Backtesting the results
 ```
 
 ---
@@ -115,7 +116,7 @@ Run the trading system:
 git clone https://github.com/Yash12930/RL_Techevince_StockMarket.git
 cd RL_Techevince_StockMarket
 pip install -r requirements.txt
-python FinalCall.py
+python backtester.py
 ```
 
 ---

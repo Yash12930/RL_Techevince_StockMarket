@@ -71,7 +71,6 @@ sentiment_config = {
 
 | Mechanism       | Threshold           | Implementation     |
 | --------------- | ------------------- | ------------------ |
-| Position Sizing | 30% per stock       | Kelly Criterion    |
 | Stop-Loss       | 5% trailing         | Dynamic adjustment |
 | Max Drawdown    | 15% circuit breaker | Portfolio freeze   |
 

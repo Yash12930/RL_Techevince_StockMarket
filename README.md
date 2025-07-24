@@ -1,6 +1,6 @@
 # RL Equity Trading Framework
 
-**RL\_Techevince\_StockMarket** is an advanced toolkit and research framework for applying Reinforcement Learning (RL) to stock portfolio management and trading strategies. It brings together state-of-the-art RL algorithms, technical indicators, sentiment analysis, and risk management in a modular pipeline for Indian and global stock markets.
+**RL\_StockMarket** is an advanced toolkit and research framework for applying Reinforcement Learning (RL) to stock portfolio management and trading strategies. It brings together state-of-the-art RL algorithms, technical indicators, sentiment analysis, and risk management in a modular pipeline for Indian and global stock markets.
 
 ---
 
